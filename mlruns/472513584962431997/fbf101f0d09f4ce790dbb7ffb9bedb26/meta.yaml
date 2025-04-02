@@ -1,0 +1,16 @@
+artifact_uri: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/fbf101f0d09f4ce790dbb7ffb9bedb26/artifacts
+deleted_time: 1743563661807
+end_time: 1743526700277
+entry_point_name: ''
+experiment_id: '472513584962431997'
+lifecycle_stage: deleted
+run_id: fbf101f0d09f4ce790dbb7ffb9bedb26
+run_name: kindly-shad-700
+run_uuid: fbf101f0d09f4ce790dbb7ffb9bedb26
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743526690650
+status: 3
+tags: []
+user_id: Debapriya

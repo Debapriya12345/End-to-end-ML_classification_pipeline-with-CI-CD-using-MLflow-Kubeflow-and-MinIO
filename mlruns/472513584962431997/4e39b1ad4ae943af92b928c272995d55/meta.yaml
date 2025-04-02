@@ -1,0 +1,16 @@
+artifact_uri: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/4e39b1ad4ae943af92b928c272995d55/artifacts
+deleted_time: 1743563661807
+end_time: 1743528781554
+entry_point_name: ''
+experiment_id: '472513584962431997'
+lifecycle_stage: deleted
+run_id: 4e39b1ad4ae943af92b928c272995d55
+run_name: rebellious-kit-672
+run_uuid: 4e39b1ad4ae943af92b928c272995d55
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743528771767
+status: 4
+tags: []
+user_id: Debapriya

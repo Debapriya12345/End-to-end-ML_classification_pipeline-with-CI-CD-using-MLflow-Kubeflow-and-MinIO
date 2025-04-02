@@ -1,0 +1,16 @@
+artifact_uri: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/d2e4e96d289743d398f770bb13e9b5fa/artifacts
+deleted_time: 1743563661807
+end_time: 1743528734785
+entry_point_name: ''
+experiment_id: '472513584962431997'
+lifecycle_stage: deleted
+run_id: d2e4e96d289743d398f770bb13e9b5fa
+run_name: sassy-shrimp-630
+run_uuid: d2e4e96d289743d398f770bb13e9b5fa
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743528734507
+status: 4
+tags: []
+user_id: Debapriya

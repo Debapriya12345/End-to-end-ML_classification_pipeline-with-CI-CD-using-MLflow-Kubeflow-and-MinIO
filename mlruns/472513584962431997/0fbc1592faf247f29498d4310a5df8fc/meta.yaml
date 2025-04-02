@@ -1,0 +1,16 @@
+artifact_uri: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/0fbc1592faf247f29498d4310a5df8fc/artifacts
+deleted_time: 1743563661807
+end_time: 1743526870165
+entry_point_name: ''
+experiment_id: '472513584962431997'
+lifecycle_stage: deleted
+run_id: 0fbc1592faf247f29498d4310a5df8fc
+run_name: overjoyed-fox-127
+run_uuid: 0fbc1592faf247f29498d4310a5df8fc
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743526860793
+status: 3
+tags: []
+user_id: Debapriya

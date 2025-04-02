@@ -1,0 +1,15 @@
+artifact_uri: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/97b41b1a391c46eb8a3efc8dac2225ed/artifacts
+end_time: 1743528937258
+entry_point_name: ''
+experiment_id: '472513584962431997'
+lifecycle_stage: active
+run_id: 97b41b1a391c46eb8a3efc8dac2225ed
+run_name: awesome-bug-588
+run_uuid: 97b41b1a391c46eb8a3efc8dac2225ed
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743528932518
+status: 3
+tags: []
+user_id: Debapriya

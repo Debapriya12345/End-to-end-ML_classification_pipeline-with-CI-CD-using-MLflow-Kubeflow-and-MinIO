@@ -1,0 +1,20 @@
+artifact_path: HeartClassification_model
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.12.2
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.6.1
+mlflow_version: 2.20.2
+model_size_bytes: 724303
+model_uuid: ead392e2eae54d249ad9b27b1504265a
+run_id: 5d53b6f28fae4b2b99458d5f36be5f2b
+utc_time_created: '2025-04-02 03:13:09.104919'

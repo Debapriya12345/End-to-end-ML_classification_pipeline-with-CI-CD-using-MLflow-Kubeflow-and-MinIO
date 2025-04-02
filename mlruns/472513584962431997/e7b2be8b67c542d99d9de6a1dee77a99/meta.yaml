@@ -1,0 +1,15 @@
+artifact_uri: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/e7b2be8b67c542d99d9de6a1dee77a99/artifacts
+end_time: 1743528932502
+entry_point_name: ''
+experiment_id: '472513584962431997'
+lifecycle_stage: active
+run_id: e7b2be8b67c542d99d9de6a1dee77a99
+run_name: tasteful-crow-18
+run_uuid: e7b2be8b67c542d99d9de6a1dee77a99
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743528922534
+status: 3
+tags: []
+user_id: Debapriya

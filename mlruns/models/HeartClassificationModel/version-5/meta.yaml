@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1743528932453
+current_stage: None
+description: null
+last_updated_timestamp: 1743528932453
+name: HeartClassificationModel
+run_id: e7b2be8b67c542d99d9de6a1dee77a99
+run_link: null
+source: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/e7b2be8b67c542d99d9de6a1dee77a99/artifacts/HeartClassification_model
+status: READY
+status_message: null
+storage_location: file:///E:/GDS_MLOPS/Project-1/mlruns/472513584962431997/e7b2be8b67c542d99d9de6a1dee77a99/artifacts/HeartClassification_model
+user_id: null
+version: 5
