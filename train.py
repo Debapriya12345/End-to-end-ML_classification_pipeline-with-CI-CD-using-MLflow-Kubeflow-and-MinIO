@@ -51,6 +51,7 @@ def train_model_Randomforest(X_train, y_train, X_test, y_test):
         pickle.dump(Randomforest_model, open(model_path, 'wb'))
         print("Saved the pickle File of Randomforest model")
 
+        #📌Log model and artifact in specific Mlflow
         mlflow.sklearn.log_model(Randomforest_model, "HeartClassification_model")
         mlflow.log_artifact(model_path, artifact_path="artifacts")
 
@@ -91,6 +92,7 @@ def train_model_GradientBoosting(X_train, y_train, X_test, y_test):
         pickle.dump(GradientBoosting_model, open(model_path, 'wb'))
         print("Saved the pickle File of GradientBoosting model")
 
+        #📌Log model and artifact in specific Mlflow
         mlflow.sklearn.log_model(GradientBoosting_model, "HeartClassification_model")
         mlflow.log_artifact(model_path, artifact_path="artifacts")
 

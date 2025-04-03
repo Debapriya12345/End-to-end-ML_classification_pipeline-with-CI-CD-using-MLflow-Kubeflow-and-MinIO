@@ -11,8 +11,8 @@ import os
 
 # ✅ Define FastAPI app
 app = FastAPI()
-run_id = "472513584962431997"  # Replace with your actual run ID
-experiment_id = "4e39b1ad4ae943af92b928c272995d55"  # Replace with actual experiment ID
+run_id = "472513584962431997"  
+experiment_id = "4e39b1ad4ae943af92b928c272995d55"  
 
 model_path = os.path.join("mlruns", run_id, experiment_id, "artifacts", "HeartClassification_model"
 )
