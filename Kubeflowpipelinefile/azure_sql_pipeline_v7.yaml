@@ -1,0 +1,392 @@
+# PIPELINE DEFINITION
+# Name: ml-pipeline-test
+# Description: Test pipeline for debugging
+components:
+  comp-data-download:
+    executorLabel: exec-data-download
+    outputDefinitions:
+      artifacts:
+        data_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-data-preprocessing:
+    executorLabel: exec-data-preprocessing
+    inputDefinitions:
+      artifacts:
+        data_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        label_test_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        label_train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        test_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-push-model-to-mlflow:
+    executorLabel: exec-push-model-to-mlflow
+    inputDefinitions:
+      artifacts:
+        model_path:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+  comp-train-model:
+    executorLabel: exec-train-model
+    inputDefinitions:
+      artifacts:
+        test_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        test_labels:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_labels:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        model_path:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+  comp-upload-predictions:
+    executorLabel: exec-upload-predictions
+    inputDefinitions:
+      artifacts:
+        model_path:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-data-download:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - data_download
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'sqlalchemy'\
+          \ 'psycopg2' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef data_download(data_path: OutputPath(\"Dataset\")):\n    \"\"\"\
+          Fetches data from Azure PostgreSQL and saves it as a CSV for the pipeline.\"\
+          \"\"\n\n    print(\" Downloading data from Azure PostgreSQL...\")\n\n  \
+          \  DB_USERNAME = \"myusername\"  #This is directly visible as \"Administrator\
+          \ login\"\n    DB_PASSWORD = \"abcd1234$\"  #I have set this password at\
+          \ the time of creation Azure PostgreSQL\n    DB_SERVER = \"myserverproject1.postgres.database.azure.com\"\
+          \  #(This is the \"Endpoint\")\n    DB_NAME = \"heartdb\" #I have created\
+          \ this Database through create statement\n    DB_PORT = \"5432\"  \n   \
+          \ sslmode=\"require\"  # \u2705 Ensure SSL is enabled\n\n\n    import pandas\
+          \ as pd\n    import psycopg2\n    from sqlalchemy import create_engine\n\
+          \n    def get_db_connection():\n        # Create Database URL\n        DATABASE_URL\
+          \ = f\"postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}:{DB_PORT}/{DB_NAME}\"\
+          \n        # Create Database Engine\n        engine = create_engine(DATABASE_URL)\n\
+          \        return engine\n\n    try:\n        engine = get_db_connection()\n\
+          \        # Define table name\n        TABLE_NAME = \"mytable\"\n       \
+          \ query = f\"SELECT * FROM {TABLE_NAME}\"\n        df = pd.read_sql(query,\
+          \ engine)\n\n    except Exception as e:\n        print(\" Error fetching\
+          \ data from PostgreSQL:\", e)\n        df = pd.DataFrame()  # Set empty\
+          \ DataFrame to avoid failure\n\n    df.to_csv(data_path, index=False, encoding=\"\
+          utf-8\")\n    print(f\" Data saved to {data_path}\")\n\n"
+        image: python:3.9
+    exec-data-preprocessing:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - data_preprocessing
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef data_preprocessing(\n    data_path: InputPath(), # \U0001F9E0\
+          Load dataset from previous component\n    train_path: OutputPath(\"Dataset\"\
+          ), \n    label_train_path: OutputPath(\"Dataset\"), \n    test_path: OutputPath(\"\
+          Dataset\"), \n    label_test_path: OutputPath(\"Dataset\")\n):\n    from\
+          \ sklearn.model_selection import train_test_split\n\n    print(\" Preprocessing\
+          \ data...\")\n    df = pd.read_csv(data_path)\n\n    X = df.iloc[:, :-1]\
+          \  # Features (all columns except the last)\n    y = df.iloc[:, -1]   #\
+          \ Target variable (the last column)\n\n    # Split the dataset into training\
+          \ and testing sets\n    X_train, X_test, y_train, y_test = train_test_split(X,\
+          \ y, test_size=0.2, random_state=42)\n\n    # \U0001F525 Write output files\
+          \ to the correct output paths\n\n    pd.DataFrame(X_train).to_csv(train_path,\
+          \ index=False)\n    pd.DataFrame(y_train).to_csv(label_train_path, index=False)\n\
+          \    pd.DataFrame(X_test).to_csv(test_path, index=False)\n    pd.DataFrame(y_test).to_csv(label_test_path,\
+          \ index=False)\n\n"
+        image: python:3.9
+    exec-push-model-to-mlflow:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - push_model_to_mlflow
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'mlflow' 'joblib'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef push_model_to_mlflow(model_path: InputPath(\"Model\")):\n   \
+          \ \"\"\"Registers the trained model in MLflow.\"\"\"\n    import mlflow\n\
+          \    import mlflow.sklearn\n\n    print(f\" Registering model in MLflow:\
+          \ {model_path}\")\n    mlflow.set_tracking_uri(\"http://mlflow-server:5000\"\
+          )\n    experiment_name = \"heart_attack_prediction\".encode(\"utf-8\").decode(\"\
+          utf-8\")\n    mlflow.set_experiment(experiment_name)\n\n    with mlflow.start_run():\n\
+          \        mlflow.sklearn.log_model(model_path, \"random_forest_model\")\n\
+          \        print(\" Model registered in MLflow!\")\n\n"
+        image: python:3.9
+    exec-train-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ 'joblib' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_model(\n    train_data: InputPath(\"Dataset\"),\n    train_labels:\
+          \ InputPath(\"Dataset\"),\n    test_data: InputPath(\"Dataset\"),\n    test_labels:\
+          \ InputPath(\"Dataset\"),\n    model_path: OutputPath(\"Model\") #Kubeflow\
+          \ labels the artifact as \"Model\", making it easier to track.\n):\n   \
+          \ \"\"\"Train a model and save it to the given output path.\"\"\"\n    import\
+          \ pandas as pd\n    from sklearn.ensemble import RandomForestClassifier\n\
+          \    from sklearn.metrics import accuracy_score\n    import joblib\n\n \
+          \   print(\" Training model...\")\n\n    #  Read input datasets\n    X_train\
+          \ = pd.read_csv(train_data)\n    y_train = pd.read_csv(train_labels)\n \
+          \   X_test = pd.read_csv(test_data)\n    y_test = pd.read_csv(test_labels)\n\
+          \n    #  Train model\n    model = RandomForestClassifier(n_estimators=100,\
+          \ random_state=42)\n    model.fit(X_train, y_train)\n\n    #  Evaluate model\n\
+          \    y_pred = model.predict(X_test)\n    accuracy = accuracy_score(y_test,\
+          \ y_pred)\n    print(f\" Model Accuracy: {accuracy:.4f}\")\n\n    #  Save\
+          \ model to Kubeflow artifact path\n    joblib.dump(model, model_path)\n\
+          \    print(f\" Model saved at {model_path}\")\n\n"
+        image: python:3.9
+    exec-upload-predictions:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - upload_predictions
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'sqlalchemy'\
+          \ 'psycopg2' 'joblib' 'scikit-learn' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef upload_predictions(model_path: InputPath(\"Model\")):\n    \"\
+          \"\"Loads the model, makes predictions, and stores them in Azure PostgreSQL.\"\
+          \"\"\n    import pandas as pd\n    import joblib\n    import sqlalchemy\n\
+          \    from sqlalchemy import create_engine\n\n    print(f\" Loading model\
+          \ for predictions: {model_path}\")\n\n    #  Load the model\n    model =\
+          \ joblib.load(model_path)\n\n    test_data = pd.DataFrame({\n    \"age\"\
+          : [40, 61, 46],\n    \"sex\": [1, 1, 1],\n    \"cp\": [0, 0, 0],\n    \"\
+          trestbps\": [152, 140, 140],\n    \"chol\": [223, 207, 311],\n    \"fbs\"\
+          : [0, 0, 0],\n    \"restecg\": [1, 0, 1],\n    \"thalach\": [181, 138, 120],\n\
+          \    \"exang\": [0, 1, 1],\n    \"oldpeak\": [0.0, 1.9, 1.8],\n    \"slope\"\
+          : [2, 2, 1],\n    \"ca\": [0, 1, 2],\n    \"thal\": [3, 3, 3]})\n\n    predictions\
+          \ = model.predict(test_data)\n\n    #  Convert to DataFrame\n    predictions_df\
+          \ = pd.DataFrame({\"age\": test_data[\"age\"], \"predicted_label\": predictions})\n\
+          \n    #  Database Credentials (Replac with actual values)\n    DB_USERNAME\
+          \ = \"myusername\"  #This is directly visible as \"Administrator login\"\
+          \n    DB_PASSWORD = \"abcd1234$\"  #I have set this password at the time\
+          \ of creation Azure PostgreSQL\n    DB_SERVER = \"myserverproject1.postgres.database.azure.com\"\
+          \  #(This is the \"Endpoint\")\n    DB_NAME = \"heartdb\" #I have created\
+          \ this Database through create statement\n    DB_PORT = \"5432\"  \n   \
+          \ sslmode=\"require\"  # \u2705 Ensure SSL is enabled\n\n    def get_db_connection():\n\
+          \        # Create Database URL\n        DATABASE_URL = f\"postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}:{DB_PORT}/{DB_NAME}\"\
+          \n        # Create Database Engine\n        engine = create_engine(DATABASE_URL)\n\
+          \        return engine\n\n    engine = get_db_connection()\n\n    predictions_df.to_sql(\"\
+          predictions\", engine, if_exists=\"replace\", index=False, method=\"multi\"\
+          )\n\n    print(\" Predictions uploaded to Azure PostgreSQL.\")\n\n"
+        image: python:3.9
+pipelineInfo:
+  description: Test pipeline for debugging
+  name: ml-pipeline-test
+root:
+  dag:
+    tasks:
+      data-download:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-data-download
+        taskInfo:
+          name: data-download
+      data-preprocessing:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-data-preprocessing
+        dependentTasks:
+        - data-download
+        inputs:
+          artifacts:
+            data_path:
+              taskOutputArtifact:
+                outputArtifactKey: data_path
+                producerTask: data-download
+        taskInfo:
+          name: data-preprocessing
+      push-model-to-mlflow:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-push-model-to-mlflow
+        dependentTasks:
+        - train-model
+        inputs:
+          artifacts:
+            model_path:
+              taskOutputArtifact:
+                outputArtifactKey: model_path
+                producerTask: train-model
+        taskInfo:
+          name: push-model-to-mlflow
+      train-model:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-model
+        dependentTasks:
+        - data-preprocessing
+        inputs:
+          artifacts:
+            test_data:
+              taskOutputArtifact:
+                outputArtifactKey: test_path
+                producerTask: data-preprocessing
+            test_labels:
+              taskOutputArtifact:
+                outputArtifactKey: label_test_path
+                producerTask: data-preprocessing
+            train_data:
+              taskOutputArtifact:
+                outputArtifactKey: train_path
+                producerTask: data-preprocessing
+            train_labels:
+              taskOutputArtifact:
+                outputArtifactKey: label_train_path
+                producerTask: data-preprocessing
+        taskInfo:
+          name: train-model
+      upload-predictions:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-upload-predictions
+        dependentTasks:
+        - train-model
+        inputs:
+          artifacts:
+            model_path:
+              taskOutputArtifact:
+                outputArtifactKey: model_path
+                producerTask: train-model
+        taskInfo:
+          name: upload-predictions
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1
