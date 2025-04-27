@@ -1,0 +1,457 @@
+# PIPELINE DEFINITION
+# Name: heart-disease-auto-retraining-pipeline
+# Description: Retrains the heart disease model if accuracy drops on new data
+components:
+  comp-check-heart-model-exists:
+    executorLabel: exec-check-heart-model-exists
+    outputDefinitions:
+      parameters:
+        status:
+          parameterType: STRING
+  comp-condition-1:
+    dag:
+      tasks:
+        train-heart-model:
+          cachingOptions:
+            enableCache: true
+          componentRef:
+            name: comp-train-heart-model
+          inputs:
+            artifacts:
+              train_path:
+                componentInputArtifact: pipelinechannel--fetch-heart-data-from-azure-train_path
+          taskInfo:
+            name: train-heart-model
+    inputDefinitions:
+      artifacts:
+        pipelinechannel--fetch-heart-data-from-azure-train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        pipelinechannel--check-heart-model-exists-status:
+          parameterType: STRING
+  comp-condition-2:
+    dag:
+      tasks:
+        condition-3:
+          componentRef:
+            name: comp-condition-3
+          dependentTasks:
+          - evaluate-heart-model
+          inputs:
+            artifacts:
+              pipelinechannel--fetch-heart-data-from-azure-train_path:
+                componentInputArtifact: pipelinechannel--fetch-heart-data-from-azure-train_path
+            parameters:
+              pipelinechannel--check-heart-model-exists-status:
+                componentInputParameter: pipelinechannel--check-heart-model-exists-status
+              pipelinechannel--evaluate-heart-model-result:
+                taskOutputParameter:
+                  outputParameterKey: result
+                  producerTask: evaluate-heart-model
+          taskInfo:
+            name: condition-3
+          triggerPolicy:
+            condition: inputs.parameter_values['pipelinechannel--evaluate-heart-model-result']
+              == 'bad'
+        evaluate-heart-model:
+          cachingOptions:
+            enableCache: true
+          componentRef:
+            name: comp-evaluate-heart-model
+          inputs:
+            artifacts:
+              eval_path:
+                componentInputArtifact: pipelinechannel--fetch-heart-data-from-azure-eval_path
+          taskInfo:
+            name: evaluate-heart-model
+    inputDefinitions:
+      artifacts:
+        pipelinechannel--fetch-heart-data-from-azure-eval_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        pipelinechannel--fetch-heart-data-from-azure-train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        pipelinechannel--check-heart-model-exists-status:
+          parameterType: STRING
+  comp-condition-3:
+    dag:
+      tasks:
+        train-heart-model-2:
+          cachingOptions:
+            enableCache: true
+          componentRef:
+            name: comp-train-heart-model-2
+          inputs:
+            artifacts:
+              train_path:
+                componentInputArtifact: pipelinechannel--fetch-heart-data-from-azure-train_path
+          taskInfo:
+            name: train-heart-model-2
+    inputDefinitions:
+      artifacts:
+        pipelinechannel--fetch-heart-data-from-azure-train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        pipelinechannel--check-heart-model-exists-status:
+          parameterType: STRING
+        pipelinechannel--evaluate-heart-model-result:
+          parameterType: STRING
+  comp-evaluate-heart-model:
+    executorLabel: exec-evaluate-heart-model
+    inputDefinitions:
+      artifacts:
+        eval_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      parameters:
+        result:
+          parameterType: STRING
+  comp-fetch-heart-data-from-azure:
+    executorLabel: exec-fetch-heart-data-from-azure
+    outputDefinitions:
+      artifacts:
+        eval_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-train-heart-model:
+    executorLabel: exec-train-heart-model
+    inputDefinitions:
+      artifacts:
+        train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-train-heart-model-2:
+    executorLabel: exec-train-heart-model-2
+    inputDefinitions:
+      artifacts:
+        train_path:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-check-heart-model-exists:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - check_heart_model_exists
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'boto3' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef check_heart_model_exists(status: OutputPath(str)):\n    import\
+          \ boto3\n\n    s3 = boto3.client(\n        \"s3\",\n        endpoint_url=\"\
+          http://10.97.217.252:9000\",\n        aws_access_key_id=\"minio\",\n   \
+          \     aws_secret_access_key=\"minio123\"\n    )\n\n    response = s3.list_objects_v2(Bucket=\"\
+          mlpipeline\", Prefix=\"models/\")\n    print(\"Files in MinIO 'models/'\
+          \ bucket:\")\n    for obj in response.get(\"Contents\", []):\n        print(\"\
+          \ -\", obj[\"Key\"])\n\n    try:\n        s3.head_object(Bucket=\"mlpipeline\"\
+          , Key=\"models/heart_model.pkl\")\n        result = \"exists\"\n       \
+          \ print(\"Model already exists in MinIO.\")\n    except Exception as e:\n\
+          \        result = \"first_run\"\n        print(\"Model not found. First\
+          \ run detected.\")\n\n    with open(status, \"w\") as f:\n        f.write(result)\n\
+          \n"
+        image: python:3.9
+    exec-evaluate-heart-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - evaluate_heart_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ 'joblib' 'boto3' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef evaluate_heart_model(eval_path: InputPath(\"Dataset\"), result:\
+          \ OutputPath(str)):\n    import pandas as pd\n    import joblib\n    import\
+          \ boto3\n    from sklearn.metrics import accuracy_score\n\n    # MinIO client\
+          \ setup\n    s3 = boto3.client(\n        \"s3\",\n        endpoint_url=\"\
+          http://10.97.217.252:9000\",\n        aws_access_key_id=\"minio\",\n   \
+          \     aws_secret_access_key=\"minio123\"\n    )\n\n    # Download model\
+          \ from MinIO\n    s3.download_file(\"mlpipeline\", \"models/heart_model.pkl\"\
+          , \"heart_model.pkl\")\n    print(\"Model downloaded from MinIO\")\n\n \
+          \   # Load eval dataset and model\n    df = pd.read_csv(eval_path)\n   \
+          \ X = df.drop(\"target\", axis=1)  # For heart disease, label column is\
+          \ 'target'\n    y = df[\"target\"]\n\n    model = joblib.load(\"heart_model.pkl\"\
+          )\n    preds = model.predict(X)\n    acc = accuracy_score(y, preds)\n\n\
+          \    print(f\"Eval Accuracy: {acc:.2f}\")\n\n    # Write evaluation result\n\
+          \    with open(result, \"w\") as f:\n        f.write(\"good\" if acc >=\
+          \ 0.85 else \"bad\")\n\n"
+        image: python:3.9
+    exec-fetch-heart-data-from-azure:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - fetch_heart_data_from_azure
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'sqlalchemy'\
+          \ 'psycopg2' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef fetch_heart_data_from_azure(eval_path: OutputPath(\"Dataset\"\
+          ), train_path: OutputPath(\"Dataset\")):\n    import pandas as pd\n    import\
+          \ numpy as np\n    from sqlalchemy import create_engine\n\n    try:\n  \
+          \      engine = create_engine(\n            \"postgresql://pgadmin:MyPass06@ml-pipeline-pg-server.postgres.database.azure.com:5432/ml_pipeline_db\"\
+          \n        )\n        df = pd.read_sql(\"SELECT * FROM heart_disease_data\"\
+          , engine)\n        print(\"Fetched data from Azure PostgreSQL\")\n    except\
+          \ Exception as e:\n        print(\"Azure DB fetch failed, generating synthetic\
+          \ fallback data.\", e)\n        np.random.seed(42)\n        df = pd.DataFrame({\n\
+          \            \"age\": np.random.randint(29, 77, 303),\n            \"sex\"\
+          : np.random.choice([0, 1], 303),\n            \"cp\": np.random.randint(0,\
+          \ 4, 303),\n            \"trestbps\": np.random.randint(94, 200, 303),\n\
+          \            \"chol\": np.random.randint(126, 564, 303),\n            \"\
+          fbs\": np.random.choice([0, 1], 303),\n            \"restecg\": np.random.randint(0,\
+          \ 2, 303),\n            \"thalach\": np.random.randint(71, 202, 303),\n\
+          \            \"exang\": np.random.choice([0, 1], 303),\n            \"oldpeak\"\
+          : np.round(np.random.uniform(0.0, 6.2, 303), 1),\n            \"slope\"\
+          : np.random.randint(0, 3, 303),\n            \"ca\": np.random.randint(0,\
+          \ 5, 303),\n            \"thal\": np.random.randint(0, 4, 303),\n      \
+          \      \"target\": np.random.choice([0, 1], 303)\n        })\n\n    # Save\
+          \ first 100 rows as eval, full as train\n    df.head(100).to_csv(eval_path,\
+          \ index=False)\n    df.to_csv(train_path, index=False)\n    print(\"Saved\
+          \ 100-row eval set and full train set\")\n\n"
+        image: python:3.9
+    exec-train-heart-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_heart_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ 'joblib' 'boto3' 'prometheus_client' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_heart_model(train_path: InputPath(\"Dataset\")):\n    import\
+          \ pandas as pd\n    import joblib\n    import boto3\n    from sklearn.ensemble\
+          \ import RandomForestClassifier\n    from sklearn.model_selection import\
+          \ train_test_split\n    from sklearn.metrics import accuracy_score\n   \
+          \ from prometheus_client import Gauge, start_http_server\n    import threading\n\
+          \    import time\n\n    # Start Prometheus server in a thread (non-blocking)\n\
+          \    def start_prometheus():\n        start_http_server(8000)\n        while\
+          \ True:\n            time.sleep(1000)  # keep it alive\n\n    threading.Thread(target=start_prometheus,\
+          \ daemon=True).start()\n\n    # Train the model\n    df = pd.read_csv(train_path)\n\
+          \    X = df.drop(\"target\", axis=1)\n    y = df[\"target\"]\n    X_train,\
+          \ X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)\n\n  \
+          \  model = RandomForestClassifier(random_state=42)\n    model.fit(X_train,\
+          \ y_train)\n    acc = accuracy_score(y_test, model.predict(X_test))\n  \
+          \  print(f\"Training complete - Accuracy: {acc:.2f}\")\n\n    # Save model\
+          \ locally\n    joblib.dump(model, \"model.pkl\")\n\n    # Export metric\
+          \ to Prometheus\n    acc_metric = Gauge('model_accuracy', 'Accuracy of the\
+          \ trained model')\n    acc_metric.set(acc)\n\n    # Upload model to MinIO\n\
+          \    s3 = boto3.client(\n        \"s3\",\n        endpoint_url=\"http://10.97.217.252:9000\"\
+          ,\n        aws_access_key_id=\"minio\",\n        aws_secret_access_key=\"\
+          minio123\"\n    )\n    s3.upload_file(\"model.pkl\", \"mlpipeline\", \"\
+          models/model.pkl\")\n    print(\"Model uploaded to MinIO\")\n    # Save\
+          \ to local\n    with open(\"accuracy.txt\", \"w\") as f:\n        f.write(str(acc))\n\
+          \n    # Upload to MinIO\n    s3.upload_file(\"accuracy.txt\", \"mlpipeline\"\
+          , \"metrics/accuracy.txt\")\n    print(\"Uploaded accuracy.txt to MinIO\
+          \ (mlpipeline/metrics/accuracy.txt)\")\n\n"
+        image: python:3.9
+    exec-train-heart-model-2:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_heart_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ 'joblib' 'boto3' 'prometheus_client' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_heart_model(train_path: InputPath(\"Dataset\")):\n    import\
+          \ pandas as pd\n    import joblib\n    import boto3\n    from sklearn.ensemble\
+          \ import RandomForestClassifier\n    from sklearn.model_selection import\
+          \ train_test_split\n    from sklearn.metrics import accuracy_score\n   \
+          \ from prometheus_client import Gauge, start_http_server\n    import threading\n\
+          \    import time\n\n    # Start Prometheus server in a thread (non-blocking)\n\
+          \    def start_prometheus():\n        start_http_server(8000)\n        while\
+          \ True:\n            time.sleep(1000)  # keep it alive\n\n    threading.Thread(target=start_prometheus,\
+          \ daemon=True).start()\n\n    # Train the model\n    df = pd.read_csv(train_path)\n\
+          \    X = df.drop(\"target\", axis=1)\n    y = df[\"target\"]\n    X_train,\
+          \ X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)\n\n  \
+          \  model = RandomForestClassifier(random_state=42)\n    model.fit(X_train,\
+          \ y_train)\n    acc = accuracy_score(y_test, model.predict(X_test))\n  \
+          \  print(f\"Training complete - Accuracy: {acc:.2f}\")\n\n    # Save model\
+          \ locally\n    joblib.dump(model, \"model.pkl\")\n\n    # Export metric\
+          \ to Prometheus\n    acc_metric = Gauge('model_accuracy', 'Accuracy of the\
+          \ trained model')\n    acc_metric.set(acc)\n\n    # Upload model to MinIO\n\
+          \    s3 = boto3.client(\n        \"s3\",\n        endpoint_url=\"http://10.97.217.252:9000\"\
+          ,\n        aws_access_key_id=\"minio\",\n        aws_secret_access_key=\"\
+          minio123\"\n    )\n    s3.upload_file(\"model.pkl\", \"mlpipeline\", \"\
+          models/model.pkl\")\n    print(\"Model uploaded to MinIO\")\n    # Save\
+          \ to local\n    with open(\"accuracy.txt\", \"w\") as f:\n        f.write(str(acc))\n\
+          \n    # Upload to MinIO\n    s3.upload_file(\"accuracy.txt\", \"mlpipeline\"\
+          , \"metrics/accuracy.txt\")\n    print(\"Uploaded accuracy.txt to MinIO\
+          \ (mlpipeline/metrics/accuracy.txt)\")\n\n"
+        image: python:3.9
+pipelineInfo:
+  description: Retrains the heart disease model if accuracy drops on new data
+  name: heart-disease-auto-retraining-pipeline
+root:
+  dag:
+    tasks:
+      check-heart-model-exists:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-check-heart-model-exists
+        taskInfo:
+          name: check-heart-model-exists
+      condition-1:
+        componentRef:
+          name: comp-condition-1
+        dependentTasks:
+        - check-heart-model-exists
+        - fetch-heart-data-from-azure
+        inputs:
+          artifacts:
+            pipelinechannel--fetch-heart-data-from-azure-train_path:
+              taskOutputArtifact:
+                outputArtifactKey: train_path
+                producerTask: fetch-heart-data-from-azure
+          parameters:
+            pipelinechannel--check-heart-model-exists-status:
+              taskOutputParameter:
+                outputParameterKey: status
+                producerTask: check-heart-model-exists
+        taskInfo:
+          name: condition-1
+        triggerPolicy:
+          condition: inputs.parameter_values['pipelinechannel--check-heart-model-exists-status']
+            == 'first_run'
+      condition-2:
+        componentRef:
+          name: comp-condition-2
+        dependentTasks:
+        - check-heart-model-exists
+        - fetch-heart-data-from-azure
+        inputs:
+          artifacts:
+            pipelinechannel--fetch-heart-data-from-azure-eval_path:
+              taskOutputArtifact:
+                outputArtifactKey: eval_path
+                producerTask: fetch-heart-data-from-azure
+            pipelinechannel--fetch-heart-data-from-azure-train_path:
+              taskOutputArtifact:
+                outputArtifactKey: train_path
+                producerTask: fetch-heart-data-from-azure
+          parameters:
+            pipelinechannel--check-heart-model-exists-status:
+              taskOutputParameter:
+                outputParameterKey: status
+                producerTask: check-heart-model-exists
+        taskInfo:
+          name: condition-2
+        triggerPolicy:
+          condition: inputs.parameter_values['pipelinechannel--check-heart-model-exists-status']
+            == 'exists'
+      fetch-heart-data-from-azure:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-fetch-heart-data-from-azure
+        taskInfo:
+          name: fetch-heart-data-from-azure
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1
